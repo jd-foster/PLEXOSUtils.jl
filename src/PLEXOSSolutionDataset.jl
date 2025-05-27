@@ -1,65 +1,56 @@
-# IndexCounter
-
-eval(Expr(
-    :struct, true, :IndexCounter, Expr(:block,
-        [:($(t.fieldname)::Int) for t in plexostables if isnothing(t.identifier)]...
-    )
-))
-
-IndexCounter() = IndexCounter(zeros(Int, length(fieldnames(IndexCounter)))...)
-
-function increment!(x::IndexCounter, fieldname::Symbol)
-    idx = getfield(x, fieldname) + 1
-    setfield!(x, fieldname, idx)
-    return idx
-end
-
 # PLEXOSSolutionDataset
 
 eval(Expr(
-    :struct, false, :(PLEXOSSolutionDataset <: AbstractDataset), Expr(:block,
-        [:($(t.fieldname)::Vector{$(t.fieldtype)}) for t in plexostables]...
+    :struct, false, :(PLEXOSSolutionDataset <: AbstractDataset),
+    Expr(:block,
+        [:($(t.fieldname)::Vector{$(t.fieldtype)}) for t in plexos_tables]...,
+        :(index_map::IndexMap),
+        :(consolidated::Ref{Bool})
     )
 ))
 
 function PLEXOSSolutionDataset(
-    zippath::String, xmlname::String=defaultxml(zippath)
-)
+    zippath::String, xmlname::String=defaultxml(zippath);
+    consolidated::Bool=false)
 
     resultsarchive = _open_plexoszip(zippath)
     xml = parsexml(resultsarchive[xmlname])
-    return PLEXOSSolutionDataset(xml)
+    return PLEXOSSolutionDataset(xml; consolidated=consolidated)
 end
 
-function PLEXOSSolutionDataset(xml::Document)
+function PLEXOSSolutionDataset(xml::Document; summary=nothing, consolidated::Bool=false)
 
-    summary = PLEXOSSolutionDatasetSummary(xml)
-    result = PLEXOSSolutionDataset(summary, consolidated=false)
+    if isnothing(summary)
+        summary = PLEXOSSolutionDatasetSummary(xml)
+    end
+    result = PLEXOSSolutionDataset(summary, consolidated=consolidated)
     idxcounter = IndexCounter()
 
-    for loadorder in 1:7
+    for loadorder in 1:max_loadorder
         for element in eachelement(xml.root)
 
             # Ignore given tables:
-            !(element.name in keys(plexostables_lookup)) && continue
+            !(element.name in keys(plexos_tables_lookup)) && continue
 
-            table = plexostables_lookup[element.name]
+            table = plexos_tables_lookup[element.name]
             table.loadorder == loadorder || continue
 
-            idx = if isnothing(table.identifier)
-                      increment!(idxcounter, table.fieldname)
-                  else
-                      getchildint(table.identifier, element) + table.indexoffset
-                  end
+            if isnothing(table.identifier)
+                idx = increment!(idxcounter, table.fieldname)
+            elseif consolidated
+                lookup_idx = getchildint(table.identifier, element)
+                idx = getfield(result.index_map, table.fieldname)[lookup_idx]
+            else
+                idx = getchildint(table.identifier, element) + table.indexoffset
+            end
 
-            getfield(result, table.fieldname)[idx] =
-                eval(table.fieldtype)(element, result)
+            getfield(result, table.fieldname)[idx] = (table.fieldtype)(element, result)
 
         end
     end
 
-    return consolidate(result, summary)
-
+    result.consolidated[] = consolidated # de-reference Bool value
+    return result
 end
 
 function PLEXOSSolutionDataset(
@@ -68,29 +59,55 @@ function PLEXOSSolutionDataset(
 
     selector = consolidated ? first : last
 
-    return PLEXOSSolutionDataset((
-        Vector{eval(t.fieldtype)}(undef, selector(getfield(summary, t.fieldname)))
-        for t in plexostables)...)
+    return PLEXOSSolutionDataset(
+            (Vector{t.fieldtype}(undef, selector(getfield(summary, t.fieldname)))
+            for t in plexos_tables)...,
+            summary.index_map,
+            consolidated
+           )
 
 end
 
+==(a::PLEXOSSolutionDataset, b::PLEXOSSolutionDataset) = 
+    propertynames(a) == propertynames(b) && 
+    a.consolidated[] == b.consolidated[] &&
+    getdict(a.index_map) == getdict(b.index_map)
+    ## This is much stronger but trickier to enforce if there are undefined references:
+    # all(getproperty(a, p) == getproperty(b, p) for p in propertynames(a) if !(p in [:index_map, :consolidated]))
+    
 function consolidate(
     unconsolidated::PLEXOSSolutionDataset,
     summary::PLEXOSSolutionDatasetSummary)
 
-    result = PLEXOSSolutionDataset(summary, consolidated=true)
+    if unconsolidated.consolidated[] # de-reference Bool value
+        @info "PLEXOSSolutionDataset object already consolidated"
+        return unconsolidated
+    end
 
-    for name in fieldnames(PLEXOSSolutionDataset)
-        idx = 0
-        vec = getfield(unconsolidated, name)
-        for i in 1:length(vec)
-            if isassigned(vec, i)
-                idx += 1
-                getfield(result, name)[idx] = vec[i]
-            end
+    index_map = unconsolidated.index_map
+
+    result = PLEXOSSolutionDataset(summary, consolidated=true)
+    for name in keys(plexos_tables_sym_lu)
+
+        values = getfield(unconsolidated, name)
+        
+        if hasfield(index_map, name)
+            index_lookup = keys(getfield(index_map, name))
+        else
+            index_lookup = 1:length(values)
+        end
+        
+        indexoffset = plexos_tables_sym_lu[name].indexoffset
+        if indexoffset !== 0
+            index_lookup = collect(index_lookup) .+ indexoffset
+        end
+
+        for (i, idx) in enumerate(index_lookup)
+            getfield(result, name)[i] = values[idx]
         end
     end
 
+    result.consolidated[] = true # de-reference Bool value
     return result
 
 end

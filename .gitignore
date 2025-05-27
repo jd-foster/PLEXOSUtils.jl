@@ -1,0 +1,13 @@
+.DS_Store
+Manifest.toml
+docs/Manifest.toml
+LocalPreferences.toml
+
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+.vscode/
+tags/
+tags
+site/
+.ipynb_checkpoints/

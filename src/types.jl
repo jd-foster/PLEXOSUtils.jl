@@ -1,4 +1,5 @@
 abstract type AbstractDataset end
+const sample_offset = 4
 
 # Metadata
 
@@ -50,7 +51,6 @@ struct PLEXOSSampleWeight
     value::Float64
 end
 
-const sample_offset = plexostables_lookup["t_sample"].indexoffset
 PLEXOSSampleWeight(e::Node, d::AbstractDataset) =
     PLEXOSSampleWeight(d.samples[getchildint("sample_id", e) + sample_offset],
                        getchildint("phase_id", e),
@@ -290,7 +290,7 @@ struct PLEXOSMemoObject
 
         value = getchildtext("value", e)
         object_idx = getchildint("object_id", e)
-        column = d.customcolumns[getchildint("column_id", e)]
+        column = d.custom_column[getchildint("column_id", e)]
 
         if isassigned(d.objects, object_idx)
             new(value, column, d.objects[object_idx])
