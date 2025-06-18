@@ -62,7 +62,7 @@ const plexos_tables = [
     PLEXOSTable("t_tag",               :tag,               PLEXOSTag,              7, "data_id") # 2 foreign keys as PK
     PLEXOSTable("t_text",              :text,              PLEXOSText,             7, "data_id") # 2 foreign keys as PK
     PLEXOSTable("t_property_tag",      :property_tag,      PLEXOSPropertyTag,      7) # BigInt (powers of 2) used for primary key
-    PLEXOSTable("t_memo_object",      :memo_object,        PLEXOSMemoObject,       7) # 2 foreign keys as PK
+    PLEXOSTable("t_memo_object",       :memo_object,       PLEXOSMemoObject,       7) # 2 foreign keys as PK
     # t_custom_rule      # Not implemented
     # t_membership_meta  # Not implemented
     # t_memo_data        # Not implemented
