@@ -1,7 +1,9 @@
-abstract type AbstractDataset end
-const sample_offset = 4
+# Input data schema based on plexosdb v1.0 (repo: https://github.com/NREL/plexosdb, file: plexosdb/src/plexosdb/schema.sql)
 
-# Metadata
+abstract type AbstractDataset end
+# const sample_offset = 4
+
+## Metadata ##
 
 struct PLEXOSConfig
     element::String
@@ -99,6 +101,8 @@ end
 #         getchildint("phase_id", e),
 #         getchildfloat("value", e)
 #     )
+
+## 
 
 struct PLEXOSClassGroup
     # identifier: class_group_id

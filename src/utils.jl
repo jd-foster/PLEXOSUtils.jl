@@ -88,3 +88,47 @@ end
 instance_to_dict(x::Number) = x
 instance_to_dict(x::String) = x
 instance_to_dict(::Nothing) = nothing
+
+function check_and_print_dataset(dataset::PLEXOSSolutionDataset, summ::PLEXOSSolutionDatasetSummary)
+    total = 0
+
+    println("Summary: (count, max. index)")
+    for i in propertynames(summ)
+        (i == :index_map) && continue
+        t = getfield(summ,i)
+        if !isempty(t)
+            println("\t$i: $t")
+            total += first(t)
+        end
+    end
+
+    for i in propertynames(dataset)
+        (i in [:index_map,:consolidated]) && continue
+        t = getfield(summ,i)
+        if !isempty(t)
+            s = getfield(dataset,i)
+            # println("\t$i: $t, $(length(s))")
+            @assert last(t) == length(s)
+        end
+    end
+
+    println("Empty:")
+    for i in propertynames(dataset)
+        (i == :index_map) && continue
+        t = getfield(dataset,i)
+        if isempty(t)
+            println("\t$i")
+        end
+    end
+
+    println("Not empty: max. index")
+    for i in propertynames(dataset)
+        (i == :index_map) && continue
+        t = getfield(dataset,i)
+        if !isempty(t)
+            println("\t$i: $(length(t))")
+        end
+    end
+
+    return total
+end
