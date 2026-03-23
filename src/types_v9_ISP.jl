@@ -1,23 +1,11 @@
-# Input data schema based on plexosdb v1.0 (repo: https://github.com/NREL/plexosdb, file: plexosdb/src/plexosdb/schema.sql)
+# Input data schema based on plexosdb v1.x (repo: https://github.com/NREL/plexosdb) 
+# Sync with file: plexosdb/src/plexosdb/schema.sql
+# Follows PLEXOS v9+.
 
 abstract type AbstractDataset end
-# const sample_offset = 4
 
-## Metadata ##
-
-struct PLEXOSConfig
-    element::String
-    value::String
-
-    PLEXOSConfig(e::Node, ::AbstractDataset) = 
-        new(
-            getchildstr("element", e),
-            getchildstr("value", e)
-        )
-end
-
+"table: `t_assembly`; identifier: `assembly_id`"
 struct PLEXOSAssembly
-    # identifier: assembly_id
     filename::Union{String, Nothing}
     namespace::Union{String, Nothing}
     is_enabled::Bool
@@ -30,82 +18,8 @@ struct PLEXOSAssembly
         )
 end
 
-struct PLEXOSUnit 
-    # identifier: unit_id
-    value::String
-    default::Union{String, Nothing}
-    imperial_energy::Union{String, Nothing}
-    metric_level::Union{String, Nothing}
-    imperial_level::Union{String, Nothing}
-    metric_volume::Union{String, Nothing}
-    imperial_volume::Union{String, Nothing}
-    description::Union{String, Nothing}
-    lang_id::Union{Int, Nothing}
-end
-
-PLEXOSUnit(e::Node, ::AbstractDataset) = PLEXOSUnit(
-        getchildstr("value", e),
-        getchildstr("default", e),
-        getchildstr("imperial_energy", e),
-        getchildstr("metric_level", e),
-        getchildstr("imperial_level", e),
-        getchildstr("metric_volume", e),
-        getchildstr("imperial_volume", e),
-        getchildstr("description", e),
-        getchildint( "lang_id", e),
-)
-
-struct PLEXOSAction
-    # identifier: action_id
-    action_symbol::String
-
-    function PLEXOSAction(e::Node, ::AbstractDataset)
-        new(
-            getchildstr("action_symbol", e)
-        )
-    end
-end
-
-# struct PLEXOSTimeslice
-#     name::String
-# end
-
-# PLEXOSTimeslice(e::Node, ::AbstractDataset) =
-#     PLEXOSTimeslice(getchildstr("name", e))
-
-
-# struct PLEXOSModel
-#     name::String
-# end
-
-# PLEXOSModel(e::Node, ::AbstractDataset) =
-#     PLEXOSModel(getchildstr("name", e))
-
-
-# struct PLEXOSSample
-#     name::String
-# end
-
-# PLEXOSSample(e::Node, ::AbstractDataset) =
-#     PLEXOSSample(getchildstr("sample_name", e))
-
-# struct PLEXOSSampleWeight
-#     sample::PLEXOSSample
-#     phase::Int # maybe Parametrize on this?
-#     value::Float64
-# end
-
-# PLEXOSSampleWeight(e::Node, d::AbstractDataset) =
-#     PLEXOSSampleWeight(
-#         d.samples[getchildint("sample_id", e) + sample_offset],
-#         getchildint("phase_id", e),
-#         getchildfloat("value", e)
-#     )
-
-## 
-
+"table: `t_class_group`; identifier: `class_group_id`"
 struct PLEXOSClassGroup
-    # identifier: class_group_id
     name::String
     lang_id::Union{Int, Nothing}
 
@@ -117,8 +31,91 @@ struct PLEXOSClassGroup
     end
 end
 
+"table: `t_config`; identifer: `element`"
+struct PLEXOSConfig
+    element::String
+    value::String
+
+    PLEXOSConfig(e::Node, ::AbstractDataset) = 
+        new(
+            getchildstr("element", e),
+            getchildstr("value", e)
+        )
+end
+
+"table: `t_property_group`; identifier: `property_group_id`"
+struct PLEXOSPropertyGroup 
+    name::Union{String, Nothing}
+    lang_id::Union{Int, Nothing}
+
+    function PLEXOSPropertyGroup(e::Node, ::AbstractDataset)
+        new(
+            getchildstr("name", e),
+            getchildint("lang_id", e)
+        )
+    end
+end
+
+"table: `t_unit`; identifier: `unit_id`"
+struct PLEXOSUnit 
+    value::String
+    default::Union{String, Nothing}
+    imperial_energy::Union{String, Nothing}
+    metric_level::Union{String, Nothing}
+    imperial_level::Union{String, Nothing}
+    metric_volume::Union{String, Nothing}
+    imperial_volume::Union{String, Nothing}
+    description::Union{String, Nothing}
+    lang_id::Union{Int, Nothing}
+
+    function PLEXOSUnit(e::Node, ::AbstractDataset)
+        new(
+            getchildstr("value", e),
+            getchildstr("default", e),
+            getchildstr("imperial_energy", e),
+            getchildstr("metric_level", e),
+            getchildstr("imperial_level", e),
+            getchildstr("metric_volume", e),
+            getchildstr("imperial_volume", e),
+            getchildstr("description", e),
+            getchildint("lang_id", e),
+        )
+    end
+end
+
+"table: t_action; identifier: action_id"
+struct PLEXOSAction
+    action_symbol::String
+
+    function PLEXOSAction(e::Node, ::AbstractDataset)
+        new(
+            getchildstr("action_symbol", e)
+        )
+    end
+end
+
+struct PLEXOSMessage end  # Not implemented
+
+"table: `t_property_tag`; identifer: `tag_id`"
+struct PLEXOSPropertyTag
+    # tag_id::BigInt
+    tag_id::Int
+    name::Union{String, Nothing}
+
+    function PLEXOSPropertyTag(e::Node, d::AbstractDataset)
+        # Alternative: new(parsechild(BigInt, "tag_id", e), getchildstr("name", e))
+        new( # store log2 of the tag_id since they are just powers of 2.
+            round(Int, log2(parsechild(BigInt, "tag_id", e))), 
+            getchildstr("name", e)
+        )
+    end
+
+end
+
+struct PLEXOSCustomRule end  # Not implemented
+
+"table: `t_class`; identifer: `class_id`"
 struct PLEXOSClass
-    # identifier: class_id
     name::String
     class_group::PLEXOSClassGroup
     is_enabled::Union{Bool, Nothing}
@@ -126,96 +123,22 @@ struct PLEXOSClass
     description::Union{String, Nothing}
     state::Union{Int, Nothing}
     inherits_from::Union{Int, Nothing}
-end
 
-function PLEXOSClass(e::Node, d::AbstractDataset)
-    PLEXOSClass(
-        getchildstr("name", e),
-        getref("class_group_id", e, d, :class_group),
-        getchildbool("is_enabled", e),
-        getchildint("lang_id", e),
-        getchildstr("description", e),
-        getchildint("state", e),
-        getchildint("inherits_from", e)
-    )
-end
-
-struct PLEXOSCategory
-    # identifier: category_id
-    class::Union{PLEXOSClass, Nothing}
-    rank::Union{Int, Nothing}
-    name::Union{String, Nothing}
-    state::Union{Int, Nothing}
-
-    # PLEXOS sometimes reports categories without reporting the classes they
-    # refer to: if that happens, just leave the class undefined
-    # (category won't have any objects anyways)
-
-    function PLEXOSCategory(e::Node, d::AbstractDataset)
-        class_idx = getchildint("class_id", e)
-        if !isnothing(class_idx) && checkref(d, :class, class_idx)
-            this_class = getref(d, :class, class_idx)
-        else
-            this_class = nothing
-        end
-
-        return new(this_class,
-            getchildint("rank", e),
+    function PLEXOSClass(e::Node, d::AbstractDataset)
+        new(
             getchildstr("name", e),
-            getchildint("state", e)
-        )
-
-    end
-
-end
-
-
-struct PLEXOSAttribute
-    # identifier: attribute_id
-    class::Union{PLEXOSClass, Nothing}
-    enum_id::Int
-    name::Union{String, Nothing}
-    unit::PLEXOSUnit
-    default_value::Union{Float64, Nothing}
-    validation_rule::Union{String, Nothing}
-    input_mask::Union{String, Nothing}
-    is_enabled::Bool
-    is_integer::Bool
-    lang_id::Int
-    description::Union{String, Nothing}
-    tag::Union{String, Nothing}
-    is_visible::Bool
-
-    # PLEXOS sometimes reports attributes without reporting the classes they
-    # refer to: if that happens, just leave the classes undefined
-
-    function PLEXOSAttribute(e::Node, d::AbstractDataset)
-        class_idx = getchildint("class_id", e)
-        if !isnothing(class_idx) && checkref(d, :class, class_idx)
-            this_class = getref(d, :class, class_idx)
-        else
-            this_class = nothing
-        end
-
-        return new(this_class,
-            getchildint("enum_id", e),
-            getchildstr("name", e),
-            getref("unit_id", e, d, :unit),
-            getchildfloat("default_value", e),
-            getchildstr("validation_rule", e),
-            getchildstr("input_mask", e),
+            getref("class_group_id", e, d, :class_group),
             getchildbool("is_enabled", e),
-            getchildbool("is_integer", e),
             getchildint("lang_id", e),
             getchildstr("description", e),
-            getchildstr("tag", e),
+            getchildint("state", e),
+            getchildint("inherits_from", e)
         )
     end
 end
 
-
+"table: `t_collection`; identifier: `collection_id`"
 struct PLEXOSCollection
-    # identifier: collection_id
     parent_class::Union{PLEXOSClass, Nothing}
     child_class::Union{PLEXOSClass, Nothing}
     name::Union{String, Nothing}
@@ -273,8 +196,8 @@ struct PLEXOSCollection
 
 end
 
+"table: `t_collection_report`; identifier: (`collection_id`, `left_collection_id`, `right_collection_id`)"
 struct PLEXOSCollectionReport
-    # identifier: none (collection_id + left_collection_id + right_collection_id)
     collection_id::PLEXOSCollection
     left_collection_id::PLEXOSCollection
     right_collection_id::PLEXOSCollection
@@ -295,36 +218,8 @@ struct PLEXOSCollectionReport
 
 end
 
-struct PLEXOSCustomColumn
-    # identifier: column_id
-    class::PLEXOSClass
-    name::Union{String, Nothing}
-    position::Union{Int, Nothing}
-    GUID::Union{String, Nothing}
-
-    function PLEXOSCustomColumn(e::Node, d::AbstractDataset)
-        new(
-            getref("class_id", e, d, :class),
-            getchildstr("name", e),
-            getchildint("position", e),
-            getchildstr("GUID", e)
-        )
-    end
-
-end
-
-struct PLEXOSPropertyGroup 
-    # identifier: property_group_id
-    name::Union{String, Nothing}
-    lang_id::Union{Int, Nothing}
-
-    function PLEXOSPropertyGroup(e::Node, ::AbstractDataset)
-        new(getchildstr("name", e), getchildint("lang_id", e))
-    end
-end
-
+"table: `t_property`; identifier: `property_id`"
 struct PLEXOSProperty 
-    # identifier: property_id
     collection::Union{PLEXOSCollection, Nothing}
     property_group::PLEXOSPropertyGroup
     enum_id::Union{Int, Nothing}
@@ -347,21 +242,20 @@ struct PLEXOSProperty
     tag::Union{String, Nothing}
     is_visible::Bool
 
-    # PLEXOS sometimes reports properties without reporting the collections they
-    # refer to: if that happens, just leave the collections undefined
-    # (property won't have any data anyways)
-
     function PLEXOSProperty(e::Node, d::AbstractDataset)
 
         if checkref("collection_id", e, d, :collection)
             collection = getref("collection_id", e, d, :collection)
         else
+            # PLEXOS sometimes reports properties without reporting the collections they
+            # refer to: if that happens, just leave the collections undefined
+            # (property won't have any data anyways)
             @warn "Undefined collection for: $e"
             collection = nothing
         end
-        # property_group = getref("property_group_id", e, d, :property_group)
 
-        new(collection,
+        new(
+            collection,
             getref("property_group_id", e, d, :property_group),
             getchildint("enum_id", e),
             getchildstr("name", e),
@@ -387,8 +281,8 @@ struct PLEXOSProperty
 
 end
 
+"table: `t_property_report`; identifier: `property_id`"
 struct PLEXOSPropertyReport 
-    # identifier: property_id
     collection::Union{PLEXOSCollection, Nothing}
     property_group::PLEXOSPropertyGroup
     enum_id::Union{Int, Nothing}
@@ -409,20 +303,20 @@ struct PLEXOSPropertyReport
     description::Union{String, Nothing}
     is_visible::Bool
 
-    # PLEXOS sometimes reports properties without reporting the collections they
-    # refer to: if that happens, just leave the collections undefined
-
     function PLEXOSPropertyReport(e::Node, d::AbstractDataset)
 
         if checkref("collection_id", e, d, :collection)
             collection = getref("collection_id", e, d, :collection)
         else
+            # PLEXOS sometimes reports properties without reporting the collections they
+            # refer to: if that happens, just leave the collections undefined
             @warn "Undefined collection for: $e"
             collection = nothing
         end
         # property_group = getref("property_group_id", e, d, :property_group)
 
-        new(collection,
+        new(
+            collection,
             getref("property_group_id", e, d, :property_group),
             getchildint("enum_id", e),
             getchildstr("name", e),
@@ -446,10 +340,99 @@ struct PLEXOSPropertyReport
 
 end
 
-# System Data
+"table: `t_custom_column`; identifier: `column_id`"
+struct PLEXOSCustomColumn
+    class::PLEXOSClass
+    name::Union{String, Nothing}
+    position::Union{Int, Nothing}
+    GUID::Union{String, Nothing}
 
+    function PLEXOSCustomColumn(e::Node, d::AbstractDataset)
+        new(
+            getref("class_id", e, d, :class),
+            getchildstr("name", e),
+            getchildint("position", e),
+            getchildstr("GUID", e)
+        )
+    end
+
+end
+
+"table: `t_attribute`; identifier: `attribute_id`"
+struct PLEXOSAttribute
+    class::Union{PLEXOSClass, Nothing}
+    enum_id::Int
+    name::Union{String, Nothing}
+    unit::PLEXOSUnit
+    default_value::Union{Float64, Nothing}
+    validation_rule::Union{String, Nothing}
+    input_mask::Union{String, Nothing}
+    is_enabled::Bool
+    is_integer::Bool
+    lang_id::Int
+    description::Union{String, Nothing}
+    tag::Union{String, Nothing}
+    is_visible::Bool
+
+    function PLEXOSAttribute(e::Node, d::AbstractDataset)
+        class_idx = getchildint("class_id", e)
+        if !isnothing(class_idx) && checkref(d, :class, class_idx)
+            this_class = getref(d, :class, class_idx)
+        else
+            # PLEXOS sometimes reports attributes without reporting the classes they
+            # refer to: if that happens, just leave the classes undefined
+            this_class = nothing
+        end
+
+        return new(
+            this_class,
+            getchildint("enum_id", e),
+            getchildstr("name", e),
+            getref("unit_id", e, d, :unit),
+            getchildfloat("default_value", e),
+            getchildstr("validation_rule", e),
+            getchildstr("input_mask", e),
+            getchildbool("is_enabled", e),
+            getchildbool("is_integer", e),
+            getchildint("lang_id", e),
+            getchildstr("description", e),
+            getchildstr("tag", e),
+            getchildbool("is_visible", e),
+        )
+    end
+end
+
+"table: `t_category`; identifier: `category_id`"
+struct PLEXOSCategory
+    class::Union{PLEXOSClass, Nothing}
+    rank::Union{Int, Nothing}
+    name::Union{String, Nothing}
+    state::Union{Int, Nothing}
+
+    function PLEXOSCategory(e::Node, d::AbstractDataset)
+        class_idx = getchildint("class_id", e)
+        if !isnothing(class_idx) && checkref(d, :class, class_idx)
+            this_class = getref(d, :class, class_idx)
+        else
+            # PLEXOS sometimes reports categories without reporting the classes they
+            # refer to: if that happens, just leave the class undefined
+            # (category won't have any objects anyways)
+            this_class = nothing
+        end
+
+        return new(
+            this_class,
+            getchildint("rank", e),
+            getchildstr("name", e),
+            getchildint("state", e)
+        )
+
+    end
+
+end
+
+"table: `object_id`; identifier: `t_object`"
 struct PLEXOSObject
-    # identifier: object_id
     class::PLEXOSClass
     name::String
     category::PLEXOSCategory
@@ -473,58 +456,10 @@ struct PLEXOSObject
             getchildint("Z", e),
         )
     end
-end
-
-struct PLEXOSMembership
-    # identifier: membership_id
-    parent_class::PLEXOSClass
-    parent_object::PLEXOSObject
-    collection::PLEXOSCollection
-    child_class::PLEXOSClass
-    child_object::PLEXOSObject
-    state::Union{Int, Nothing}
-
-    function PLEXOSMembership(e::Node, d::AbstractDataset)
-        new(
-            getref("parent_class_id", e, d, :class),
-            getref("parent_object_id", e, d, :object),
-            getref("collection_id", e, d, :collection),
-            getref("child_class_id", e, d, :class),
-            getref("child_object_id", e, d, :object),
-            getchildint("state", e),
-        )
-    end
-end
-
-
-struct PLEXOSAttributeData
-    # identifers: object_id, attribute_id
-    object::Union{PLEXOSObject, Nothing}
-    attribute::PLEXOSAttribute
-    value::Float64
-    state::Union{Int, Nothing}
-
-    function PLEXOSAttributeData(e::Node, d::AbstractDataset)       
-        # PLEXOS sometimes reports attributes without reporting the objects they
-        # refer to: if that happens, just leave the objects undefined
-        object_idx = getchildint("object_id", e)
-        if checkref(d, :object, object_idx)
-            object_ref = getref(d, :object, object_idx)
-        else
-            @warn "Undefined object for: $e"
-            object_ref = nothing
-        end
-        attribute_ref = getref("attribute_id", e, d, :attribute)
-
-        new(object_ref,
-            attribute_ref,
-            getchildfloat("value", e),
-            getchildint("state", e)
-        )
-    end
 
 end
 
+"table: `t_memo_object`; identifier: (`object_id`, `column_id`)"
 struct PLEXOSMemoObject
     object::PLEXOSObject
     column::PLEXOSCustomColumn
@@ -544,14 +479,75 @@ struct PLEXOSMemoObject
             @warn "Undefined object class for: $e"
             object = nothing
         end
-        new(object, column, value, state)
+        new(
+            object,
+            column,
+            value,
+            state
+        )
 
     end
 
-end    
+end
 
+struct PLEXOSReport end       # Not implemented
+struct PLEXOSObjectMeta end   # Not implemented
+
+"table: `t_attribute_data`; identifier: (`object_id`, `attribute_id`)"
+struct PLEXOSAttributeData
+    object::Union{PLEXOSObject, Nothing}
+    attribute::PLEXOSAttribute
+    value::Float64
+    state::Union{Int, Nothing}
+
+    function PLEXOSAttributeData(e::Node, d::AbstractDataset)       
+        object_idx = getchildint("object_id", e)
+        if checkref(d, :object, object_idx)
+            object_ref = getref(d, :object, object_idx)
+        else
+            # PLEXOS sometimes reports attributes without reporting the objects they
+            # refer to: if that happens, just leave the objects undefined
+            @warn "Undefined object for: $e"
+            object_ref = nothing
+        end
+        attribute_ref = getref("attribute_id", e, d, :attribute)
+
+        new(
+            object_ref,
+            attribute_ref,
+            getchildfloat("value", e),
+            getchildint("state", e)
+        )
+    end
+
+end
+
+"table: `t_membership`; identifier: `membership_id`"
+struct PLEXOSMembership
+    parent_class::PLEXOSClass
+    parent_object::PLEXOSObject
+    collection::PLEXOSCollection
+    child_class::PLEXOSClass
+    child_object::PLEXOSObject
+    state::Union{Int, Nothing}
+
+    function PLEXOSMembership(e::Node, d::AbstractDataset)
+        new(
+            getref("parent_class_id", e, d, :class),
+            getref("parent_object_id", e, d, :object),
+            getref("collection_id", e, d, :collection),
+            getref("child_class_id", e, d, :class),
+            getref("child_object_id", e, d, :object),
+            getchildint("state", e),
+        )
+    end
+end
+
+# t_memo_membership  # Not implemented
+# t_membership_meta  # Not implemented
+
+"table: `t_data`; identifier: `data_id`"
 struct PLEXOSData
-    # identifer: data_id
     membership::PLEXOSMembership
     property::PLEXOSProperty
     value::Union{Float64, Nothing}
@@ -570,8 +566,8 @@ struct PLEXOSData
     
 end
 
-struct PLEXOSDateFrom 
-    # identifier: data_id
+"table: `t_date_from`; identifier: `data_id`"
+struct PLEXOSDateFrom
     date::DateTime
     state::Union{Int, Nothing}
 
@@ -584,8 +580,8 @@ struct PLEXOSDateFrom
 
 end
 
+"table: `t_date_to`; identifier: `data_id`"
 struct PLEXOSDateTo 
-    # identifier: data_id
     date::DateTime
     state::Union{Int, Nothing}
 
@@ -598,8 +594,8 @@ struct PLEXOSDateTo
 
 end
 
+"table: `t_tag``; identifier: (`data_id`, `object_id`)"
 struct PLEXOSTag
-    # identifers: data_id, object_id
     object::PLEXOSObject
     state::Union{Int, Nothing}
     action::Union{PLEXOSAction, Nothing}
@@ -621,24 +617,8 @@ struct PLEXOSTag
 
 end
 
-struct PLEXOSPropertyTag
-    # identifer: tag_id
-    # tag_id::BigInt
-    tag_id::Int
-    name::Union{String, Nothing}
-
-    function PLEXOSPropertyTag(e::Node, d::AbstractDataset)
-        # new(parsechild(BigInt, "tag_id", e), getchildstr("name", e))
-        new( # store log2 of the tag_id since they are just powers of 2.
-            round(Int, log2(parsechild(BigInt, "tag_id", e))), 
-            getchildstr("name", e)
-        )
-    end
-
-end
-
+"table: `t_text`; identifier: (`data_id`, `class_id`)"
 struct PLEXOSText
-    # identifers: data_id, class_id
     class::PLEXOSClass
     value::Union{String, Nothing}
     state::Union{Int, Nothing}
@@ -662,8 +642,11 @@ struct PLEXOSText
 
 end
 
+struct PLEXOSMemoData end            # Not implemented
+struct PLEXOSDataMeta end       # Not implemented
+
+"table: `t_band`; identifier: `data_id`"
 struct PLEXOSBand
-        # identifier: data_id
         band_id::Int
         state::Union{Int, Nothing}
 

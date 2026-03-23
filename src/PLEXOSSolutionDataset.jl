@@ -23,9 +23,11 @@ function PLEXOSSolutionDataset(xml::Document; summary=nothing, consolidated::Boo
     if isnothing(summary)
         summary = PLEXOSSolutionDatasetSummary(xml)
     end
+    # Initialise:
     result = PLEXOSSolutionDataset(summary, consolidated=consolidated)
     idxcounter = IndexCounter()
 
+    # Load data:
     for loadorder in 1:max_loadorder
         for element in eachelement(xml.root)
 
@@ -110,4 +112,14 @@ function consolidate(
     result.consolidated[] = true # de-reference Bool value
     return result
 
+end
+
+"Accessing data while handling if it is consolidated (or not)."
+function get_valid_data(dataset::PLEXOSSolutionDataset, field::Symbol)
+    if dataset.consolidated[]
+        return getfield(dataset, field)
+    else
+        index_set = collect( keys( getfield(dataset.index_map, field) ) )
+        return getfield(dataset, field)[index_set]
+    end
 end
